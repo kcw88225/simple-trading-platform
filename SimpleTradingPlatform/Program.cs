@@ -1,12 +1,15 @@
 ﻿using SimpleTradingPlatform.DataAccess;
 using SimpleTradingPlatform.DataAccess.DomainModel;
+using SimpleTradingPlatform.DataAccess.Interface;
 using SimpleTradingPlatform.Service;
 using SimpleTradingPlatform.Service.Exception;
+using SimpleTradingPlatform.Service.Interface;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Unity;
 
 namespace SimpleTradingPlatform
 {
@@ -14,32 +17,38 @@ namespace SimpleTradingPlatform
     {
         static void Main(string[] args)
         {
-            var repository = new InMemoryRepository();
-            var shareService = new ShareService(repository);
-            var userPortfolioService = new UserPortfolioService(repository);
-            var tradingService = new TradingService(userPortfolioService, shareService);
+            UnityIocConfig.Setup();
+            var container = UnityIocConfig.Container;
+            var repository = container.Resolve<IRepository>();
+            var shareService = container.Resolve<IShareService>();
+            var userPortfolioService = container.Resolve<IUserPortfolioService>();
+            var tradingService = container.Resolve<ITradingService>();
 
+            //Show Case (run this application for demo purpose)
             var userPortfolioId = 1;
-            var shareId = 1;
-            var userPortfolio = userPortfolioService.Get(1);
-
+            var shareAId = 1;
+            var shareBId = 2;
+            var userPortfolio = userPortfolioService.Get(userPortfolioId);
 
             Console.WriteLine("* Start with a user with no share on hand:");
             ShowPortfolio(userPortfolio);
 
-            Console.WriteLine("* Try to buy 1 share of Share A:");
-            userPortfolio = tradingService.BuyShare(userPortfolioId, shareId, 1);
-            var temp = userPortfolioService.Get(1);
+            Console.WriteLine("* Try to buy 3 share of Share A:");
+            userPortfolio = tradingService.BuyShare(userPortfolioId, shareAId, 3);
             ShowPortfolio(userPortfolio);
 
-            Console.WriteLine("* Try to sell 1 share of Share A:");
-            userPortfolio = tradingService.SellShare(userPortfolioId, shareId, 1);
+            Console.WriteLine("* Try to sell 2 share of Share A:");
+            userPortfolio = tradingService.SellShare(userPortfolioId, shareAId, 2);
             ShowPortfolio(userPortfolio);
 
-            Console.WriteLine("* Try to buy 100 shares when the user don't have enough cash:");
+            Console.WriteLine("* Try to buy 1 share of Share B:");
+            userPortfolio = tradingService.BuyShare(userPortfolioId, shareBId, 1);
+            ShowPortfolio(userPortfolio);
+
+            Console.WriteLine("* Try to buy 100 shares when the user does't have enough cash:");
             try
             {
-                userPortfolio = tradingService.BuyShare(userPortfolioId, shareId, 100);
+                userPortfolio = tradingService.BuyShare(userPortfolioId, shareAId, 100);
             }
             catch(NotEnoughCashException)
             {
@@ -47,10 +56,10 @@ namespace SimpleTradingPlatform
             }
             ShowPortfolio(userPortfolio);
 
-            Console.WriteLine("* Try to sell 100 shares when the user don't have enough shares:");
+            Console.WriteLine("* Try to sell 100 shares when the user does't have enough shares:");
             try
             {
-                userPortfolio = tradingService.SellShare(userPortfolioId, shareId, 100);
+                userPortfolio = tradingService.SellShare(userPortfolioId, shareAId, 100);
             }
             catch (NotEnoughUserShareException)
             {
@@ -61,12 +70,10 @@ namespace SimpleTradingPlatform
             Console.ReadLine();
         }
 
-
         private static void ShowPortfolio(UserPortfolio userPortfolio)
         {
-            //TODO => IOC
-            var repository = new InMemoryRepository();
-            var shareService = new ShareService(repository);
+            var container = UnityIocConfig.Container;
+            var shareService = container.Resolve<IShareService>();
 
             Console.WriteLine("Name: " + userPortfolio.Name);
             Console.WriteLine("Remaining amount of cash: " + userPortfolio.Cash);
@@ -80,10 +87,10 @@ namespace SimpleTradingPlatform
                 foreach (var shareRecord in userPortfolio.Shares)
                 {
                     var share = shareService.Get(shareRecord.Key);
-                    Console.WriteLine("Share name: " + share.Name);
+                    Console.WriteLine("- Share name: " + share.Name);
                     Console.WriteLine("Share price: " + share.Price);
                     Console.WriteLine("Quantity: " + shareRecord.Value);
-                    Console.WriteLine("Price total: " + (shareRecord.Value * share.Price));
+                    Console.WriteLine("Share price total: " + (shareRecord.Value * share.Price));
                 }
             }
             Console.WriteLine("=================================");
